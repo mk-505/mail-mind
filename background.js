@@ -1,23 +1,38 @@
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('Background script received message:', message);
+  
   if (message.type === 'gptRequest') {
-    try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${message.apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4',
-          messages: message.messages
-        })
-      });
-      const data = await res.json();
-      sendResponse({ success: true, data });
-    } catch (err) {
-      console.error('GPT fetch error:', err);
-      sendResponse({ success: false, error: err.toString() });
-    }
+    (async () => {
+      try {
+        console.log('Making API request to Azure OpenAI...');
+        const res = await fetch('https://mroo-ma49gstq-eastus2.cognitiveservices.azure.com/openai/deployments/o3-mini/chat/completions?api-version=2024-12-01-preview', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'api-key': 'DOJBDeZZ0tx9za1naH9m7ef3OQLwHREhd7uh729fb2aaoVnGqLJbJQQJ99BDACHYHv6XJ3w3AAAAACOGO50F'
+          },
+          body: JSON.stringify({
+            messages: message.messages,
+            max_completion_tokens: 800
+          })
+        });
+
+        console.log('API response status:', res.status);
+        
+        if (!res.ok) {
+          const errorData = await res.json();
+          console.error('API error response:', errorData);
+          throw new Error(errorData.error?.message || `HTTP error! status: ${res.status}`);
+        }
+
+        const data = await res.json();
+        console.log('API success response:', data);
+        sendResponse({ data });
+      } catch (err) {
+        console.error('Azure OpenAI fetch error:', err);
+        sendResponse({ error: err.message });
+      }
+    })();
+    return true; // Keep the message channel open for async response
   }
-  return true;
 });
