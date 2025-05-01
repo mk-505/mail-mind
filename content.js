@@ -353,8 +353,11 @@ async function handleGPTCompose(emailBodyDiv) {
       return;
     }
 
-    const reply = data.choices[0].message.content;
+    let reply = data.choices[0].message.content;
     console.log('📝 AI Reply:', reply);
+
+    // Remove any subject line from the reply
+    reply = reply.replace(/^Subject:.*?\n/i, '').trim();
 
     emailBodyDiv.focus();
     document.execCommand('selectAll', false, null);
