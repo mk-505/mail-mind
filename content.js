@@ -64,6 +64,25 @@ async function showCustomPrompt() {
     cancelButton.style.background = isDarkMode ? '#303134' : 'white';
     cancelButton.style.color = isDarkMode ? '#ffffff' : '#5f6368';
     cancelButton.style.border = `1px solid ${isDarkMode ? '#5f6368' : '#dadce0'}`;
+
+    // Update suggestions container and buttons for dark mode
+    const suggestionsContainer = modalContent.querySelector('.gpt-suggestions-container');
+    if (suggestionsContainer) {
+      suggestionsContainer.style.background = isDarkMode ? '#23272b' : '#f8f9fa';
+      suggestionsContainer.style.color = isDarkMode ? '#fff' : '#202124';
+      suggestionsContainer.style.border = `1px solid ${isDarkMode ? '#444950' : '#dadce0'}`;
+    }
+    const suggestionButtons = modalContent.querySelectorAll('.gpt-suggestion-btn');
+    suggestionButtons.forEach(button => {
+      button.style.background = isDarkMode ? '#202124' : 'white';
+      button.style.color = isDarkMode ? '#fff' : '#202124';
+      button.style.border = `1px solid ${isDarkMode ? '#5f6368' : '#dadce0'}`;
+    });
+    // Also update the suggestions title if present
+    const suggestionsTitle = modalContent.querySelector('.gpt-suggestions-title');
+    if (suggestionsTitle) {
+      suggestionsTitle.style.color = isDarkMode ? '#fff' : '#202124';
+    }
   };
 
   const themeToggle = document.createElement('button');
@@ -132,20 +151,24 @@ async function showCustomPrompt() {
 
   if (isReplyThread) {
     suggestionsContainer = document.createElement('div');
+    suggestionsContainer.className = 'gpt-suggestions-container';
     suggestionsContainer.style.cssText = `
       margin-bottom: 16px;
       padding: 12px;
-      background: ${isDarkMode ? '#303134' : '#f8f9fa'};
+      background: ${isDarkMode ? '#23272b' : '#f8f9fa'};
+      color: ${isDarkMode ? '#fff' : '#202124'};
       border-radius: 8px;
-      border: 1px solid ${isDarkMode ? '#5f6368' : '#dadce0'};
+      border: 1px solid ${isDarkMode ? '#444950' : '#dadce0'};
+      transition: background 0.3s, color 0.3s;
     `;
 
     const suggestionsTitle = document.createElement('h3');
+    suggestionsTitle.className = 'gpt-suggestions-title';
     suggestionsTitle.textContent = 'Suggested Responses';
     suggestionsTitle.style.cssText = `
       margin: 0 0 12px 0;
       font-size: 16px;
-      color: ${isDarkMode ? '#ffffff' : '#202124'};
+      color: ${isDarkMode ? '#fff' : '#202124'};
     `;
     suggestionsContainer.appendChild(suggestionsTitle);
 
@@ -165,6 +188,7 @@ async function showCustomPrompt() {
 
         responseOptions.forEach(option => {
           const button = document.createElement('button');
+          button.className = 'gpt-suggestion-btn';
           button.textContent = option.replace(/^\d+\.\s*/, '');
           button.style.cssText = `
             display: block;
@@ -174,7 +198,7 @@ async function showCustomPrompt() {
             border: 1px solid ${isDarkMode ? '#5f6368' : '#dadce0'};
             border-radius: 4px;
             background: ${isDarkMode ? '#202124' : 'white'};
-            color: ${isDarkMode ? '#ffffff' : '#202124'};
+            color: ${isDarkMode ? '#fff' : '#202124'};
             cursor: pointer;
             text-align: left;
             font-size: 14px;
@@ -182,7 +206,7 @@ async function showCustomPrompt() {
           `;
 
           button.onmouseover = () => {
-            button.style.background = isDarkMode ? '#404144' : '#f8f9fa';
+            button.style.background = isDarkMode ? '#444950' : '#f8f9fa';
             button.style.borderColor = '#1a73e8';
           };
 
@@ -313,11 +337,15 @@ async function handleGPTCompose(emailBodyDiv) {
       response = await chrome.runtime.sendMessage({
         type: 'gptRequest',
         messages: [
-          { role: 'system', content: 'You are an assistant writing professional emails.' },
+          {
+            role: 'system', content: isReplyThread ?
+              'You are an assistant writing professional email replies. Write only the reply text without any subject line.' :
+              'You are an assistant writing professional emails. Include a subject line at the start of your response in the format "Subject: [subject line]".'
+          },
           {
             role: 'user', content: isReplyThread ?
               `Email context: ${bodyText}\n\nPrompt: ${userPrompt}` :
-              `Prompt: ${userPrompt}`
+              `Write a new email with the following prompt: ${userPrompt}`
           }
         ]
       });
@@ -356,8 +384,22 @@ async function handleGPTCompose(emailBodyDiv) {
     let reply = data.choices[0].message.content;
     console.log('📝 AI Reply:', reply);
 
-    // Remove any subject line from the reply
-    reply = reply.replace(/^Subject:.*?\n/i, '').trim();
+    if (isReplyThread) {
+      // Remove any subject line from replies
+      reply = reply.replace(/^Subject:.*?\n/i, '').trim();
+    } else {
+      // Handle subject line for new emails
+      const subjectMatch = reply.match(/^Subject:\s*(.*?)(?:\n|$)/i);
+      if (subjectMatch) {
+        // Set the subject line
+        const subjectInput = document.querySelector('input[name="subjectbox"]');
+        if (subjectInput) {
+          subjectInput.value = subjectMatch[1].trim();
+        }
+        // Remove the subject line from the body
+        reply = reply.replace(/^Subject:.*?\n/i, '').trim();
+      }
+    }
 
     emailBodyDiv.focus();
     document.execCommand('selectAll', false, null);
