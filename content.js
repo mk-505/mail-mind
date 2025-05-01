@@ -9,7 +9,7 @@ function waitForGmailCompose() {
 
       btn.onclick = () => {
         const editableDiv = document.querySelector('[aria-label="Message Body"] div[contenteditable="true"]') ||
-                            document.querySelector('div[contenteditable="true"][aria-label][role="textbox"]');
+          document.querySelector('div[contenteditable="true"][aria-label][role="textbox"]');
 
         if (editableDiv) {
           console.log('✅ Found editable email body');
@@ -25,8 +25,198 @@ function waitForGmailCompose() {
   }, 2000);
 }
 
+async function showCustomPrompt() {
+  let isDarkMode = false;
+
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+  `;
+
+  const modalContent = document.createElement('div');
+  const updateTheme = () => {
+    modalContent.style.cssText = `
+      background: ${isDarkMode ? '#202124' : 'white'};
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px ${isDarkMode ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.15)'};
+      width: 400px;
+      max-width: 90%;
+      position: relative;
+      transition: all 0.3s ease;
+    `;
+    title.style.color = isDarkMode ? '#ffffff' : '#202124';
+    input.style.background = isDarkMode ? '#303134' : 'white';
+    input.style.color = isDarkMode ? '#ffffff' : '#202124';
+    input.style.border = `1px solid ${isDarkMode ? '#5f6368' : '#dadce0'}`;
+    themeToggle.style.background = isDarkMode ? '#303134' : 'white';
+    themeToggle.style.border = `1px solid ${isDarkMode ? '#5f6368' : '#dadce0'}`;
+    themeToggle.innerHTML = isDarkMode ? '☀️' : '🌙';
+    cancelButton.style.background = isDarkMode ? '#303134' : 'white';
+    cancelButton.style.color = isDarkMode ? '#ffffff' : '#5f6368';
+    cancelButton.style.border = `1px solid ${isDarkMode ? '#5f6368' : '#dadce0'}`;
+  };
+
+  const themeToggle = document.createElement('button');
+  themeToggle.innerHTML = '🌙';
+  themeToggle.style.cssText = `
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid #dadce0;
+    background: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    padding: 0;
+    transition: all 0.3s ease;
+  `;
+  themeToggle.onclick = () => {
+    isDarkMode = !isDarkMode;
+    updateTheme();
+  };
+  themeToggle.onmouseover = () => {
+    themeToggle.style.boxShadow = isDarkMode ?
+      '0 0 8px rgba(255, 255, 255, 0.2)' :
+      '0 0 8px rgba(0, 0, 0, 0.1)';
+  };
+  themeToggle.onmouseout = () => {
+    themeToggle.style.boxShadow = 'none';
+  };
+
+  const title = document.createElement('h2');
+  title.textContent = 'What should this email say?';
+  title.style.cssText = `
+    margin: 0 0 16px 0;
+    color: #202124;
+    font-size: 20px;
+    font-weight: 500;
+    padding-left: 28px;
+    transition: color 0.3s ease;
+  `;
+
+  const input = document.createElement('textarea');
+  input.style.cssText = `
+    width: calc(100% - 24px);
+    height: 100px;
+    padding: 12px;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    resize: none;
+    font-family: inherit;
+    box-sizing: border-box;
+    outline: none;
+    transition: all 0.3s ease;
+  `;
+  input.placeholder = 'Describe what you want to write...';
+
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.cssText = `
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  `;
+
+  const cancelButton = document.createElement('button');
+  cancelButton.textContent = 'Cancel';
+  cancelButton.style.cssText = `
+    padding: 8px 16px;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    background: white;
+    color: #5f6368;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  `;
+
+  const gptWriteButton = document.createElement('button');
+  gptWriteButton.textContent = 'GPT Write';
+  gptWriteButton.style.cssText = `
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    background: #1a73e8;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  `;
+
+  // Add hover effects
+  cancelButton.onmouseover = () => {
+    cancelButton.style.boxShadow = isDarkMode ?
+      '0 0 8px rgba(255, 255, 255, 0.2)' :
+      '0 0 8px rgba(0, 0, 0, 0.1)';
+    cancelButton.style.background = isDarkMode ? '#404144' : '#f8f9fa';
+  };
+  cancelButton.onmouseout = () => {
+    cancelButton.style.boxShadow = 'none';
+    cancelButton.style.background = isDarkMode ? '#303134' : 'white';
+  };
+
+  gptWriteButton.onmouseover = () => {
+    gptWriteButton.style.boxShadow = '0 0 12px rgba(26, 115, 232, 0.4)';
+    gptWriteButton.style.background = '#1557b0';
+  };
+  gptWriteButton.onmouseout = () => {
+    gptWriteButton.style.boxShadow = 'none';
+    gptWriteButton.style.background = '#1a73e8';
+  };
+
+  modalContent.appendChild(themeToggle);
+  modalContent.appendChild(title);
+  modalContent.appendChild(input);
+  modalContent.appendChild(buttonContainer);
+  buttonContainer.appendChild(cancelButton);
+  buttonContainer.appendChild(gptWriteButton);
+  modal.appendChild(modalContent);
+  document.body.appendChild(modal);
+
+  updateTheme();
+  input.focus();
+
+  return new Promise((resolve) => {
+    cancelButton.onclick = () => {
+      modal.remove();
+      resolve(null);
+    };
+
+    gptWriteButton.onclick = () => {
+      const userPrompt = input.value.trim();
+      modal.remove();
+      resolve(userPrompt);
+    };
+
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        gptWriteButton.click();
+      }
+    };
+  });
+}
+
 async function handleGPTCompose(emailBodyDiv) {
-  const userPrompt = prompt("What should this email say?");
+  const userPrompt = await showCustomPrompt();
   if (!userPrompt) return;
 
   const bodyText = getEmailThreadText();
