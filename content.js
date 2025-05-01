@@ -49,7 +49,7 @@ async function showCustomPrompt() {
       padding: 24px;
       border-radius: 12px;
       box-shadow: 0 4px 20px ${isDarkMode ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.15)'};
-      width: 400px;
+      width: 500px;
       max-width: 90%;
       position: relative;
       transition: all 0.3s ease;
@@ -126,6 +126,84 @@ async function showCustomPrompt() {
   `;
   input.placeholder = 'Describe what you want to write...';
 
+  // Check if we're in a reply thread
+  const isReplyThread = document.querySelector('div[role="listitem"]') !== null;
+  let suggestionsContainer = null;
+
+  if (isReplyThread) {
+    suggestionsContainer = document.createElement('div');
+    suggestionsContainer.style.cssText = `
+      margin-bottom: 16px;
+      padding: 12px;
+      background: ${isDarkMode ? '#303134' : '#f8f9fa'};
+      border-radius: 8px;
+      border: 1px solid ${isDarkMode ? '#5f6368' : '#dadce0'};
+    `;
+
+    const suggestionsTitle = document.createElement('h3');
+    suggestionsTitle.textContent = 'Suggested Responses';
+    suggestionsTitle.style.cssText = `
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      color: ${isDarkMode ? '#ffffff' : '#202124'};
+    `;
+    suggestionsContainer.appendChild(suggestionsTitle);
+
+    try {
+      const lastEmail = getEmailThreadText();
+      const response = await chrome.runtime.sendMessage({
+        type: 'gptRequest',
+        messages: [
+          { role: 'system', content: 'You are an assistant helping write email replies. Generate 3 different professional response options based on the most recent email in the thread. Each response should be a complete, well-formed sentence that could be used as a reply.' },
+          { role: 'user', content: `Most recent email: ${lastEmail}\n\nGenerate 3 different professional response options. Each response should be a complete sentence that could be used as a reply. Format each response with a number and newline, like:\n1. First response\n2. Second response\n3. Third response` }
+        ]
+      });
+
+      if (response && response.data && response.data.choices && response.data.choices[0] && response.data.choices[0].message) {
+        const suggestions = response.data.choices[0].message.content;
+        const responseOptions = suggestions.split('\n').filter(line => line.trim().match(/^\d+\./));
+
+        responseOptions.forEach(option => {
+          const button = document.createElement('button');
+          button.textContent = option.replace(/^\d+\.\s*/, '');
+          button.style.cssText = `
+            display: block;
+            width: 100%;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border: 1px solid ${isDarkMode ? '#5f6368' : '#dadce0'};
+            border-radius: 4px;
+            background: ${isDarkMode ? '#202124' : 'white'};
+            color: ${isDarkMode ? '#ffffff' : '#202124'};
+            cursor: pointer;
+            text-align: left;
+            font-size: 14px;
+            transition: all 0.2s ease;
+          `;
+
+          button.onmouseover = () => {
+            button.style.background = isDarkMode ? '#404144' : '#f8f9fa';
+            button.style.borderColor = '#1a73e8';
+          };
+
+          button.onmouseout = () => {
+            button.style.background = isDarkMode ? '#202124' : 'white';
+            button.style.borderColor = isDarkMode ? '#5f6368' : '#dadce0';
+          };
+
+          button.onclick = () => {
+            input.value = button.textContent;
+            input.focus();
+          };
+
+          suggestionsContainer.appendChild(button);
+        });
+      }
+    } catch (err) {
+      console.error('Error generating suggestions:', err);
+    }
+  }
+
   const buttonContainer = document.createElement('div');
   buttonContainer.style.cssText = `
     display: flex;
@@ -184,6 +262,9 @@ async function showCustomPrompt() {
 
   modalContent.appendChild(themeToggle);
   modalContent.appendChild(title);
+  if (suggestionsContainer) {
+    modalContent.appendChild(suggestionsContainer);
+  }
   modalContent.appendChild(input);
   modalContent.appendChild(buttonContainer);
   buttonContainer.appendChild(cancelButton);
@@ -219,7 +300,10 @@ async function handleGPTCompose(emailBodyDiv) {
   const userPrompt = await showCustomPrompt();
   if (!userPrompt) return;
 
-  const bodyText = getEmailThreadText();
+  // Check if we're in a reply thread
+  const isReplyThread = document.querySelector('div[role="listitem"]') !== null;
+  const bodyText = isReplyThread ? getEmailThreadText() : '';
+
   console.log('Starting GPT compose with prompt:', userPrompt);
 
   try {
@@ -230,7 +314,11 @@ async function handleGPTCompose(emailBodyDiv) {
         type: 'gptRequest',
         messages: [
           { role: 'system', content: 'You are an assistant writing professional emails.' },
-          { role: 'user', content: `Email context: ${bodyText}\n\nPrompt: ${userPrompt}` }
+          {
+            role: 'user', content: isReplyThread ?
+              `Email context: ${bodyText}\n\nPrompt: ${userPrompt}` :
+              `Prompt: ${userPrompt}`
+          }
         ]
       });
       console.log('Received response from background script:', response);
@@ -284,11 +372,13 @@ async function handleGPTCompose(emailBodyDiv) {
 
 function getEmailThreadText() {
   let thread = document.querySelectorAll('div[role="listitem"]');
+  if (thread.length === 0) return '';
+
+  // Get the last email in the thread (most recent)
+  const lastEmail = thread[thread.length - 1];
   let text = '';
-  thread.forEach((el) => {
-    const spans = el.querySelectorAll('span');
-    spans.forEach((span) => text += span.innerText + '\n');
-  });
+  const spans = lastEmail.querySelectorAll('span');
+  spans.forEach((span) => text += span.innerText + '\n');
   return text.slice(0, 3000);
 }
 
